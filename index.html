@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GoldRadar — Live Goldpreis & Kauf-Score</title>
+  <meta name="description" content="Live Goldpreis, verständliche Signale & Makro-Livedaten – als statische Webapp für GitHub Pages.">
+  <link rel="icon" href="assets/goldradar.svg">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module" src="app/main.js" defer></script>
+  <style>
+    /* Extra polish */
+    .glass { backdrop-filter: blur(6px); background: rgba(255,255,255,0.08); }
+    .grid-cards { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:1rem; }
+  </style>
+</head>
+<body class="min-h-screen bg-neutral-900 text-neutral-100 antialiased selection:bg-yellow-300 selection:text-black">
+  <header class="sticky top-0 z-50 border-b border-neutral-800 bg-neutral-900/90 glass">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <img src="assets/goldradar.svg" alt="GoldRadar Logo" class="w-8 h-8">
+        <h1 class="text-lg font-semibold tracking-tight">GoldRadar</h1>
+        <span class="text-xs px-2 py-1 rounded-full bg-neutral-800 border border-neutral-700">Alpha</span>
+      </div>
+      <nav class="flex items-center gap-2 text-sm">
+        <button id="modeBtn" class="px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 border border-neutral-700">Modus: <span id="modeLabel">DEMO</span></button>
+        <button id="configBtn" class="px-3 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 border border-neutral-700">⚙️&nbsp;Konfigurieren</button>
+        <a href="https://www.tradingview.com/symbols/XAUUSD/" target="_blank" class="px-3 py-1.5 rounded-lg bg-yellow-500 text-black font-medium hover:bg-yellow-400">XAUUSD Details</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+    <!-- Hero: Live Preis + Kauf-Score -->
+    <section class="grid md:grid-cols-3 gap-4">
+      <div class="md:col-span-2 rounded-2xl border border-neutral-800 p-0 overflow-hidden">
+        <!-- TradingView Symbol Overview (XAUUSD) -->
+        <div class="tradingview-widget-container">
+          <div id="tradingview_xau"></div>
+          <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+          <script>
+            document.addEventListener('DOMContentLoaded', () => {
+              if (window.TradingView) {
+                new TradingView.widget({
+                  "container_id": "tradingview_xau",
+                  "symbol": "OANDA:XAUUSD",
+                  "interval": "60",
+                  "timezone": "Europe/Berlin",
+                  "theme": "dark",
+                  "style": "1",
+                  "locale": "de_DE",
+                  "toolbar_bg": "rgba(0, 0, 0, 1)",
+                  "hide_top_toolbar": false,
+                  "hide_legend": false,
+                  "save_image": false,
+                  "studies": ["MASimple@tv-basicstudies"],
+                  "withdateranges": true,
+                  "allow_symbol_change": false,
+                  "details": true,
+                  "hotlist": false,
+                  "calendar": true,
+                  "height": 460,
+                  "width": "100%"
+                });
+              }
+            });
+          </script>
+        </div>
+      </div>
+
+      <div class="rounded-2xl border border-neutral-800 p-5 flex flex-col gap-4 justify-between bg-gradient-to-b from-neutral-900 to-neutral-950">
+        <div>
+          <h2 class="text-xl font-semibold">Kauf‑Score</h2>
+          <p class="text-sm text-neutral-400">Ein einfacher, erklärter Indikator aus Zins, USD, Inflation & Risiko.</p>
+        </div>
+        <div class="flex items-center gap-4">
+          <div class="relative w-full h-24 rounded-xl bg-neutral-800 overflow-hidden">
+            <div id="scoreBar" class="absolute left-0 top-0 bottom-0 bg-yellow-500" style="width: 50%"></div>
+            <div class="absolute inset-0 grid grid-cols-5 text-xs text-neutral-400">
+              <span class="p-1">Sehr niedrig</span><span></span><span class="p-1">Neutral</span><span></span><span class="p-1 text-right pr-2">Sehr hoch</span>
+            </div>
+          </div>
+          <div class="text-right">
+            <div id="scoreValue" class="text-4xl font-bold">50</div>
+            <div id="scoreLabel" class="text-sm text-neutral-400">Neutral</div>
+          </div>
+        </div>
+        <ul id="scoreExplain" class="text-sm text-neutral-300 space-y-1">
+          <!-- filled by JS -->
+        </ul>
+        <p class="text-xs text-neutral-500">Hinweis: Kein Anlage­rat, nur Info. Quelle: Treasury / ECB / TradingView.</p>
+      </div>
+    </section>
+
+    <!-- Datenkarten -->
+    <section class="grid-cards">
+      <div class="rounded-2xl border border-neutral-800 p-5 bg-neutral-900">
+        <h3 class="font-semibold">10‑J Realzins (USA)</h3>
+        <div class="text-2xl font-mono" id="realYield10y">–</div>
+        <p class="text-xs text-neutral-400 mt-1">Quelle: U.S. Treasury (Real Yield Curve)</p>
+        <canvas id="sparkReal" height="60"></canvas>
+      </div>
+      <div class="rounded-2xl border border-neutral-800 p-5 bg-neutral-900">
+        <h3 class="font-semibold">EUR↔USD</h3>
+        <div class="text-2xl font-mono" id="eurusd">–</div>
+        <p class="text-xs text-neutral-400 mt-1">Quelle: EZB tägliche Referenzkurse</p>
+        <canvas id="sparkFX" height="60"></canvas>
+      </div>
+      <div class="rounded-2xl border border-neutral-800 p-5 bg-neutral-900">
+        <h3 class="font-semibold">WTI Öl</h3>
+        <div class="text-2xl font-mono" id="wti">–</div>
+        <p class="text-xs text-neutral-400 mt-1">Proxy für Kosten‑ und Risikoimpulse</p>
+        <canvas id="sparkOil" height="60"></canvas>
+      </div>
+      <div class="rounded-2xl border border-neutral-800 p-5 bg-neutral-900">
+        <h3 class="font-semibold">VIX Volatilität</h3>
+        <div class="text-2xl font-mono" id="vix">–</div>
+        <p class="text-xs text-neutral-400 mt-1">Marktrisiko (Furcht‑Index)</p>
+        <canvas id="sparkVIX" height="60"></canvas>
+      </div>
+    </section>
+
+    <!-- TradingView Technische Einschätzung -->
+    <section class="rounded-2xl border border-neutral-800 p-0 overflow-hidden">
+      <div class="tradingview-widget-container">
+        <div class="tradingview-widget-container__widget"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
+          {
+            "interval": "1D",
+            "width": "100%",
+            "isTransparent": false,
+            "height": 300,
+            "symbol": "OANDA:XAUUSD",
+            "showIntervalTabs": true,
+            "locale": "de_DE",
+            "colorTheme": "dark"
+          }
+        </script>
+      </div>
+    </section>
+
+    <!-- News / Kalender -->
+    <section class="grid md:grid-cols-2 gap-4">
+      <div class="rounded-2xl border border-neutral-800 p-0 overflow-hidden">
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-events.js" async>
+          {
+            "colorTheme": "dark",
+            "isTransparent": false,
+            "width": "100%",
+            "height": 420,
+            "locale": "de_DE",
+            "importanceFilter": "-1,0,1",
+            "currencyFilter": "USD,EUR"
+          }
+          </script>
+        </div>
+      </div>
+      <div class="rounded-2xl border border-neutral-800 p-0 overflow-hidden">
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-timeline.js" async>
+          {
+            "feedMode": "all_symbols",
+            "isTransparent": false,
+            "displayMode": "regular",
+            "width": "100%",
+            "height": 420,
+            "colorTheme": "dark",
+            "locale": "de_DE"
+          }
+          </script>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Config Modal -->
+  <dialog id="configModal" class="rounded-2xl border border-neutral-700 bg-neutral-900 p-0 w-full max-w-2xl">
+    <form method="dialog" class="p-6 space-y-4">
+      <div class="flex items-start justify-between">
+        <h3 class="text-xl font-semibold">Konfiguration</h3>
+        <button class="px-3 py-1 rounded-lg bg-neutral-800 border border-neutral-700">Schließen</button>
+      </div>
+      <p class="text-sm text-neutral-400">Alles läuft ohne Server. Für „LIVE Daten“ kannst du gratis/öffentliche APIs nutzen. Keys werden lokal im Browser gespeichert.</p>
+      <div class="grid md:grid-cols-2 gap-4">
+        <label class="block">
+          <span class="text-sm text-neutral-300">FRED API Key (optional)</span>
+          <input id="fredKey" class="mt-1 w-full px-3 py-2 rounded-lg bg-neutral-800 border border-neutral-700" placeholder="abcd1234..." />
+          <span class="block text-xs text-neutral-500 mt-1">Für CPI, VIX, Öl etc. (fred.stlouisfed.org)</span>
+        </label>
+        <label class="block">
+          <span class="text-sm text-neutral-300">ECB Modus</span>
+          <select id="ecbMode" class="mt-1 w-full px-3 py-2 rounded-lg bg-neutral-800 border border-neutral-700">
+            <option value="daily" selected>Tägliche Referenzkurse</option>
+            <option value="none">Deaktiviert</option>
+          </select>
+          <span class="block text-xs text-neutral-500 mt-1">EUR↔USD via EZB JSON</span>
+        </label>
+      </div>
+      <div class="grid md:grid-cols-2 gap-4">
+        <label class="block">
+          <span class="text-sm text-neutral-300">Treasury Quelle</span>
+          <select id="tsyMode" class="mt-1 w-full px-3 py-2 rounded-lg bg-neutral-800 border border-neutral-700">
+            <option value="fiscaldata" selected>FiscalData JSON</option>
+            <option value="xml">XML Feed (Fallback)</option>
+            <option value="none">Deaktiviert</option>
+          </select>
+          <span class="block text-xs text-neutral-500 mt-1">Realzins & Zinskurve</span>
+        </label>
+        <label class="block">
+          <span class="text-sm text-neutral-300">WTI / VIX Quelle</span>
+          <select id="riskMode" class="mt-1 w-full px-3 py-2 rounded-lg bg-neutral-800 border border-neutral-700">
+            <option value="fred">FRED (Key nötig)</option>
+            <option value="none" selected>Deaktiviert</option>
+          </select>
+          <span class="block text-xs text-neutral-500 mt-1">Alternativ nur TradingView Widgets</span>
+        </label>
+      </div>
+      <div class="flex items-center justify-between pt-2">
+        <div class="text-xs text-neutral-500">Dein Setup wird lokal gespeichert (localStorage).</div>
+        <button id="saveConfig" class="px-3 py-2 rounded-lg bg-yellow-500 text-black font-medium hover:bg-yellow-400">Speichern</button>
+      </div>
+    </form>
+  </dialog>
+
+</body>
+</html>
